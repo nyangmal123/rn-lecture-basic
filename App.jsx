@@ -1,61 +1,67 @@
 import { StatusBar } from 'expo-status-bar';
 import {
-  StyleSheet,
-  Text,
-  View,
   SafeAreaView,
   ScrollView,
-  TouchableOpacity,
+  StyleSheet,
+  Text,
   TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { Image } from 'react-native';
-import styled, { css } from '@emotion/native';
-import { AntDesign, Feather } from '@expo/vector-icons';
-import { useState } from 'react';
-
-// @tailwind base;
-// @tailwind components;
-// @tailwind utilities;
-
-// 5개 컴포넌트 모두 따로 임포트해야함
-// 기본적으로 display:flex
-// flexDirection: "colunm" 기본!
+import { MaterialIcons } from '@expo/vector-icons';
+import { FontAwesome } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 
 export default function App() {
-  // const [tastList, setTaskList] = useState([]);
-  // const Task () =>{
-  //   setState[...taskList, setTaskList]
-  // };
+  const [todos, setTodos] = useState([]);
   const [text, setText] = useState('');
+  const [category, setcategory] = useState('');
+  const [editText, setEditText] = useState('');
 
+  // add Todo - 자료구조짜는 것이 일순위
+  const newTodo = {
+    id: Date.now(),
+    text,
+    isDone: false,
+    isEdit: false,
+    category,
+  };
+  // addTodo 함수 만들기 & todos 출력하기
+
+  // deleteTodo 함수 만들기
+
+  // editTodo 함수 만들기
   return (
-    <SafeAreaView>
-      <ScrollView contentContainerStyle={{ fontSize: 25, marginTop: 30 }}>
-        <View style={styles.menu}>
-          <TouchableOpacity style={styles.button}>
-            <Text>Javascript</Text>
+    <SafeAreaView style={styles.safearea}>
+      <StatusBar style='auto' />
+      <View style={styles.tabs}>
+        <TouchableOpacity style={styles.tab}>
+          <Text>javascript</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.tab}>
+          <Text>react</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.tab}>
+          <Text>ct</Text>
+        </TouchableOpacity>
+      </View>
+      <View style={styles.inputWrapper}>
+        <TextInput
+          style={styles.input}
+          placeholder='오늘 할 일을 입력하세요.'
+        />
+      </View>
+      <ScrollView>
+        <View style={styles.task}>
+          <TouchableOpacity>
+            <MaterialIcons name='edit' size={24} color='black' />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.button}>
-            <Text>React</Text>
+          <TouchableOpacity>
+            <FontAwesome name='check-circle' size={24} color='black' />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.button}>
-            <Text>Coding Test</Text>
+          <TouchableOpacity>
+            <Feather name='delete' size={24} color='black' />
           </TouchableOpacity>
-        </View>
-        <TextInput style={styles.input} value={text} onChangeText={setText} />
-        <View style={styles.checkbox}>
-          <Text style={styles.task}>{setText}</Text>
-          <View style={styles.editbutton}>
-            <TouchableOpacity>
-              <AntDesign name='checkcircleo' size={24} color='black' />
-            </TouchableOpacity>
-            <TouchableOpacity>
-              <Feather name='edit' size={24} color='black' />
-            </TouchableOpacity>
-            <TouchableOpacity>
-              <AntDesign name='delete' size={24} color='black' />
-            </TouchableOpacity>
-          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -63,33 +69,47 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  menu: {
+  safearea: {
     flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-evenly',
   },
-  button: {
-    backgroundColor: 'gray',
-    padding: 20,
-  },
-  input: {
-    padding: 30,
-    fontSize: 30,
-    width: '100%',
-    backgroundColor: 'ivory',
-  },
-  checkbox: {
+  container: {
     flex: 1,
+    paddingVertical: 30,
+    paddingHorizontal: 20,
+  },
+  tabs: {
     flexDirection: 'row',
-    padding: 20,
-    margin: 30,
-    backgroundColor: 'gray',
     justifyContent: 'space-between',
   },
-  editbutton: {
-    flex: 1,
+  tab: {
+    backgroundColor: '#0FBCF9',
+    paddingHorizontal: 10,
+    paddingVertical: 15,
+    width: '30%',
+    alignItems: 'center',
+  },
+  tabText: {
+    fontWeight: '600',
+  },
+  inputWrapper: {
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    paddingVertical: 15,
+    marginTop: 15,
+    marginBottom: 15,
+  },
+  input: {
+    borderWidth: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+  },
+  task: {
     flexDirection: 'row',
-    alignContent: 'center',
-    justifyContent: 'space-evenly',
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    backgroundColor: '#D9D9D9',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
   },
 });
