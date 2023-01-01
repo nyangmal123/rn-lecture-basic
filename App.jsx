@@ -19,7 +19,7 @@ import { useEffect } from 'react';
 export default function App() {
   const [todos, setTodos] = useState([]);
   const [text, setText] = useState('');
-  const [category, setCategory] = useState('js');
+  const [category, setCategory] = useState('');
   const [editText, setEditText] = useState('');
 
   // add Todo - 자료구조짜는 것이 일순위
@@ -92,40 +92,67 @@ export default function App() {
     setTodos(newTodos);
   };
 
+  const setCat = async (cat) => {
+    setCategory(cat);
+    await AsyncStorage.setItem('category', cat);
+  };
   // 새로고침해도 데이터가 날아가지 않도록
   // async-storage에 최신 todos상태를 저장
+  // 함수마다 끝은 항상 setTodos이니까 한 번에 쓰도록 바꿔보자
+  useEffect(() => {
+    // 최신의 todos를 AsyncStorage에 저장
+    const saveTodos = async () => {
+      await AsyncStorage.setItem('todos', JSON.stringify(todos));
+    };
+    // 초기 state값은 제로이므로 그 이후에 저장된 것이 있을 경우에만 이 함수를 실행하도록.
+    if (todos.length > 0) saveTodos();
+  }, [todos]);
+
+  useEffect(() => {
+    // 랜더링하면 가져올 데이터 - todos, category
+    // category는 문자열이어서 parse, stringify 해줄 필요 없음
+    const getData = async () => {
+      const resp_todos = await AsyncStorage.getItem('todos');
+      const resp_cat = await AsyncStorage.getItem('category');
+      // 배열과 객체는 반드시 parsing해줘야 알아차릴 수 있다.
+      setTodos(JSON.parse(resp_todos));
+      setCategory(resp_cat ?? 'js');
+    };
+    getData();
+  }, []);
 
   return (
     <SafeAreaView style={styles.safearea}>
       <StatusBar style='auto' />
       <View style={styles.tabs}>
         {/* setCategory: tab 별로 다른 todos.category */}
+        {/* AsyncStorage로 새로고침해도 저장되도록 setCat함수를 만들어 적용해준다. */}
         <TouchableOpacity
-          onPress={() => setCategory('js')}
+          onPress={() => setCat('js')}
           style={{
             ...styles.tab,
             backgroundColor: category === 'js' ? '#0FBCF9' : 'gray',
           }}
         >
-          <Text>javascript</Text>
+          <Text style={styles.tabText}>javascript</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          onPress={() => setCategory('react')}
+          onPress={() => setCat('react')}
           style={{
             ...styles.tab,
             backgroundColor: category === 'react' ? '#0FBCF9' : 'gray',
           }}
         >
-          <Text>react</Text>
+          <Text style={styles.tabText}>react</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          onPress={() => setCategory('ct')}
+          onPress={() => setCat('ct')}
           style={{
             ...styles.tab,
             backgroundColor: category === 'ct' ? '#0FBCF9' : 'gray',
           }}
         >
-          <Text>coding test</Text>
+          <Text style={styles.tabText}>coding test</Text>
         </TouchableOpacity>
       </View>
       <View style={styles.inputWrapper}>
