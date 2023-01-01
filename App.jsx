@@ -1,5 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import {
+  Alert,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -12,11 +13,13 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { FontAwesome } from '@expo/vector-icons';
 import { Feather } from '@expo/vector-icons';
 import { useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useEffect } from 'react';
 
 export default function App() {
   const [todos, setTodos] = useState([]);
   const [text, setText] = useState('');
-  const [category, setCategory] = useState('');
+  const [category, setCategory] = useState('js');
   const [editText, setEditText] = useState('');
 
   // add Todo - 자료구조짜는 것이 일순위
@@ -44,12 +47,54 @@ export default function App() {
     newTodos[idx].isDone = !newTodos[idx].isDone;
     setTodos(newTodos);
   };
-  // deleteTodo 함수 만들기
-  // const deleteTodo = () => {
-  //   setTodos((todos.id)=>{})
-  // }
 
-  // editTodo 함수 만들기
+  // deleteTodo 함수 만들기
+  // filter로 선택된 todo.id 값 받아와서 없앤 새로운 배열을 setTodos()
+  const deleteTodo = (id) => {
+    // alert API 사용하기
+    Alert.alert('Todo삭제', '정말 삭제하시겠습니까?', [
+      {
+        text: '취소',
+        style: 'cancel',
+        // onPress 해줄 것이 없어서 안썼음!
+      },
+      {
+        text: '삭제',
+        style: 'destructive',
+        onPress: () => {
+          const newTodos = todos.filter((todo) => todo.id !== id);
+          setTodos(newTodos);
+        },
+      },
+    ]);
+  };
+
+  // isEdit 상태 토글링
+  const setEdit = (id) => {
+    // edit 아이콘 누르면 함수 실행
+    // 선택한 todo의 isEdit 상태 변경
+    // edit 아이콘 누르면 출력된 todo가 입력창으로 변경돼야 함
+    // edit TextInput 창에 입력된 텍스트도 상태 저장해주는 state 필요
+    const newTodos = [...todos];
+    const idx = newTodos.findIndex((todo) => todo.id === id);
+    newTodos[idx].isEdit = !newTodos[idx].isEdit;
+    setTodos(newTodos);
+  };
+  // editTodo 함수 만들기 - 아이콘에 심어주기
+  const editTodo = (id) => {
+    // id 값을 받아서 todos[idx]찾기
+    // todos[idx] 값을 editText로 변경
+
+    const newTodos = [...todos];
+    const idx = todos.findIndex((todo) => todo.id === id);
+    newTodos[idx].text = editText;
+    newTodos[idx].isEdit = false;
+    setTodos(newTodos);
+  };
+
+  // 새로고침해도 데이터가 날아가지 않도록
+  // async-storage에 최신 todos상태를 저장
+
   return (
     <SafeAreaView style={styles.safearea}>
       <StatusBar style='auto' />
@@ -99,22 +144,33 @@ export default function App() {
           if (category === todo.category) {
             return (
               <View key={todo.id} style={styles.task}>
-                <Text
-                  style={{
-                    textDecorationLine: todo.isDone ? 'line-through' : 'none',
-                  }}
-                >
-                  {todo.text}
-                </Text>
+                {/* isEdit = true면 텍스트인풋창, false면 텍스트창 */}
+                {/* 인풋창에도 텍스트값을 저장하도록 함수 적용*/}
+                {todo.isEdit ? (
+                  <TextInput
+                    style={{ backgroundColor: 'white', flex: 1 }}
+                    value={editText}
+                    onSubmitEditing={() => editTodo(todo.id)}
+                    onChangeText={setEditText}
+                  />
+                ) : (
+                  <Text
+                    style={{
+                      textDecorationLine: todo.isDone ? 'line-through' : 'none',
+                    }}
+                  >
+                    {todo.text}
+                  </Text>
+                )}
                 <View style={{ flexDirection: 'row' }}>
                   {/* setDone 완료 토글링 함수 적용 */}
                   <TouchableOpacity onPress={() => setDone(todo.id)}>
                     <FontAwesome name='check-circle' size={24} color='black' />
                   </TouchableOpacity>
-                  <TouchableOpacity>
+                  <TouchableOpacity onPress={() => setEdit(todo.id)}>
                     <MaterialIcons name='edit' size={24} color='black' />
                   </TouchableOpacity>
-                  <TouchableOpacity>
+                  <TouchableOpacity onPress={() => deleteTodo(todo.id)}>
                     <Feather name='delete' size={24} color='black' />
                   </TouchableOpacity>
                 </View>
