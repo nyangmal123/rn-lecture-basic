@@ -1,6 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import {
   Alert,
+  DatePickerIOSBase,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -9,12 +10,25 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
-import { FontAwesome } from '@expo/vector-icons';
-import { Feather } from '@expo/vector-icons';
 import { useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect } from 'react';
+import Tabs from './components/tabs';
+import Todo from './components/Todo';
+import {
+  onSnapshot,
+  query,
+  collection,
+  doc,
+  orderBy,
+  addDoc,
+  getDoc,
+  getDocs,
+  updateDoc,
+  deleteDoc,
+} from 'firebase/firestore';
+import { dbService } from './firebase';
+import { async } from '@firebase/util';
 
 export default function App() {
   const [todos, setTodos] = useState([]);
@@ -24,28 +38,20 @@ export default function App() {
 
   // add Todo - 자료구조짜는 것이 일순위
   const newTodo = {
-    id: Date.now(),
+    // id: Date.now(),
     text,
     isDone: false,
     isEdit: false,
     category,
+    createdAt: Date.now(),
   };
   // addTodo 함수 만들기 & todos 출력하기
-  const addTodo = () => {
-    setTodos((prev) => [...prev, newTodo]);
+  const addTodo = async () => {
+    // console.log('addDoc왜 안돼 미친놈아', dbService);
+    // console.log(addDoc(collection(dbService, 'todos')));
+    // setTodos((prev) => [...prev, newTodo]);
+    await addDoc(collection(dbService, 'todos'), newTodo);
     setText('');
-  };
-
-  const setDone = (id) => {
-    // id를 매개변수로 받고
-    // setTodos를 위해 newTodos로 얕은 복사
-    // 선택된 todo의 index를 idx로 새로 선언
-    // todos[idx]의 isDone값을 !해서 토글링
-    // setTodos에 newTodos 저장
-    const newTodos = [...todos];
-    const idx = newTodos.findIndex((todo) => todo.id === id);
-    newTodos[idx].isDone = !newTodos[idx].isDone;
-    setTodos(newTodos);
   };
 
   // deleteTodo 함수 만들기
@@ -61,100 +67,80 @@ export default function App() {
       {
         text: '삭제',
         style: 'destructive',
-        onPress: () => {
-          const newTodos = todos.filter((todo) => todo.id !== id);
-          setTodos(newTodos);
+        onPress: async () => {
+          // const newTodos = todos.filter((todo) => todo.id !== id);
+          // setTodos(newTodos);
+          await deleteDoc(doc(dbService, 'todos', id));
         },
       },
     ]);
   };
 
+  // todos[idx]의 isDone값을 !해서 토글링
+  const setDone = async (id) => {
+    const idx = todos.findIndex((todo) => todo.id === id);
+    await updateDoc(doc(dbService, 'todos', id), {
+      isDone: !todos[idx].isDone,
+    });
+  };
   // isEdit 상태 토글링
-  const setEdit = (id) => {
-    // edit 아이콘 누르면 함수 실행
-    // 선택한 todo의 isEdit 상태 변경
-    // edit 아이콘 누르면 출력된 todo가 입력창으로 변경돼야 함
-    // edit TextInput 창에 입력된 텍스트도 상태 저장해주는 state 필요
-    const newTodos = [...todos];
-    const idx = newTodos.findIndex((todo) => todo.id === id);
-    newTodos[idx].isEdit = !newTodos[idx].isEdit;
-    setTodos(newTodos);
+  const setEdit = async (id) => {
+    const idx = todos.findIndex((todo) => todo.id === id);
+    await updateDoc(doc(dbService, 'todos', id), {
+      isEdit: !todos[idx].isEdit,
+    });
   };
   // editTodo 함수 만들기 - 아이콘에 심어주기
-  const editTodo = (id) => {
+  const editTodo = async (id) => {
     // id 값을 받아서 todos[idx]찾기
     // todos[idx] 값을 editText로 변경
 
-    const newTodos = [...todos];
-    const idx = todos.findIndex((todo) => todo.id === id);
-    newTodos[idx].text = editText;
-    newTodos[idx].isEdit = false;
-    setTodos(newTodos);
+    await updateDoc(doc(dbService, 'todos', id), {
+      text: editText,
+      isEdit: false,
+    });
   };
 
   const setCat = async (cat) => {
     setCategory(cat);
-    await AsyncStorage.setItem('category', cat);
+    // await AsyncStorage.setItem('category', cat);
+    await updateDoc(doc(dbService, 'category', 'currentCategory'), {
+      category: cat,
+    });
   };
-  // 새로고침해도 데이터가 날아가지 않도록
-  // async-storage에 최신 todos상태를 저장
-  // 함수마다 끝은 항상 setTodos이니까 한 번에 쓰도록 바꿔보자
   useEffect(() => {
-    // 최신의 todos를 AsyncStorage에 저장
-    const saveTodos = async () => {
-      await AsyncStorage.setItem('todos', JSON.stringify(todos));
-    };
-    // 초기 state값은 제로이므로 그 이후에 저장된 것이 있을 경우에만 이 함수를 실행하도록.
-    if (todos.length > 0) saveTodos();
-  }, [todos]);
+    // 1. onSnapshot API이용해서 todos 컬렉션에 변경이 생길 때 마다
+    // 2. todos 컬렉션 안의 모든 document들을 불러와서 setTodos한다.
 
-  useEffect(() => {
-    // 랜더링하면 가져올 데이터 - todos, category
-    // category는 문자열이어서 parse, stringify 해줄 필요 없음
-    const getData = async () => {
-      const resp_todos = await AsyncStorage.getItem('todos');
-      const resp_cat = await AsyncStorage.getItem('category');
-      // 배열과 객체는 반드시 parsing해줘야 알아차릴 수 있다.
-      setTodos(JSON.parse(resp_todos));
-      setCategory(resp_cat ?? 'js');
+    const q = query(
+      collection(dbService, 'todos'),
+      orderBy('createdAt', 'desc')
+    );
+
+    onSnapshot(q, (snapshot) => {
+      const newTodos = snapshot.docs.map((doc) => {
+        const newTodo = {
+          id: doc.id,
+          ...doc.data(), // doc.data() : {text, createdAt, ... }
+        };
+        return newTodo;
+      });
+      setTodos(newTodos);
+    });
+    // setCategory 파이어베이스에서 불러오기!
+    const getCategory = async () => {
+      const snapshot = await getDoc(
+        doc(dbService, 'category', 'currentCategory')
+      );
+      setCategory(snapshot.data().category);
     };
-    getData();
+    getCategory();
   }, []);
 
   return (
     <SafeAreaView style={styles.safearea}>
       <StatusBar style='auto' />
-      <View style={styles.tabs}>
-        {/* setCategory: tab 별로 다른 todos.category */}
-        {/* AsyncStorage로 새로고침해도 저장되도록 setCat함수를 만들어 적용해준다. */}
-        <TouchableOpacity
-          onPress={() => setCat('js')}
-          style={{
-            ...styles.tab,
-            backgroundColor: category === 'js' ? '#0FBCF9' : 'gray',
-          }}
-        >
-          <Text style={styles.tabText}>javascript</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => setCat('react')}
-          style={{
-            ...styles.tab,
-            backgroundColor: category === 'react' ? '#0FBCF9' : 'gray',
-          }}
-        >
-          <Text style={styles.tabText}>react</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => setCat('ct')}
-          style={{
-            ...styles.tab,
-            backgroundColor: category === 'ct' ? '#0FBCF9' : 'gray',
-          }}
-        >
-          <Text style={styles.tabText}>coding test</Text>
-        </TouchableOpacity>
-      </View>
+      <Tabs setCat={setCat} category={category} />
       <View style={styles.inputWrapper}>
         <TextInput
           style={styles.input}
@@ -170,38 +156,16 @@ export default function App() {
           // 카테고리 if문으로 분류
           if (category === todo.category) {
             return (
-              <View key={todo.id} style={styles.task}>
-                {/* isEdit = true면 텍스트인풋창, false면 텍스트창 */}
-                {/* 인풋창에도 텍스트값을 저장하도록 함수 적용*/}
-                {todo.isEdit ? (
-                  <TextInput
-                    style={{ backgroundColor: 'white', flex: 1 }}
-                    value={editText}
-                    onSubmitEditing={() => editTodo(todo.id)}
-                    onChangeText={setEditText}
-                  />
-                ) : (
-                  <Text
-                    style={{
-                      textDecorationLine: todo.isDone ? 'line-through' : 'none',
-                    }}
-                  >
-                    {todo.text}
-                  </Text>
-                )}
-                <View style={{ flexDirection: 'row' }}>
-                  {/* setDone 완료 토글링 함수 적용 */}
-                  <TouchableOpacity onPress={() => setDone(todo.id)}>
-                    <FontAwesome name='check-circle' size={24} color='black' />
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => setEdit(todo.id)}>
-                    <MaterialIcons name='edit' size={24} color='black' />
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => deleteTodo(todo.id)}>
-                    <Feather name='delete' size={24} color='black' />
-                  </TouchableOpacity>
-                </View>
-              </View>
+              <Todo
+                key={todo.id}
+                todo={todo}
+                editTodo={editTodo}
+                setDone={setDone}
+                setEdit={setEdit}
+                deleteTodo={deleteTodo}
+                setEditText={setEditText}
+                editText={editText}
+              />
             );
           }
         })}
@@ -219,20 +183,6 @@ const styles = StyleSheet.create({
     paddingVertical: 30,
     paddingHorizontal: 20,
   },
-  tabs: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  tab: {
-    backgroundColor: '#0FBCF9',
-    paddingHorizontal: 10,
-    paddingVertical: 15,
-    width: '30%',
-    alignItems: 'center',
-  },
-  tabText: {
-    fontWeight: '600',
-  },
   inputWrapper: {
     borderTopWidth: 1,
     borderBottomWidth: 1,
@@ -244,14 +194,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingVertical: 10,
     paddingHorizontal: 20,
-  },
-  task: {
-    flexDirection: 'row',
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    backgroundColor: '#D9D9D9',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
   },
 });
